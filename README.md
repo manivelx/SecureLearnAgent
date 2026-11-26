@@ -1,104 +1,82 @@
-![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-# SecureLearn Agent - AI-Powered Cybersecurity Education Assistant
+# SecureLearn Agent
 
-## 🚩 Problem Statement
-Cybersecurity students often face a steep learning curve. Finding structured, cohesive learning paths from scratch is challenging, getting stuck on Capture The Flag (CTF) challenges without any guidance can be demotivating, and tracking long-term progress across diverse cybersecurity topics is difficult. SecureLearn solves these three core problems using an intelligent, adaptive AI agent system.
+A command-line study assistant for cybersecurity students. It builds learning paths, gives progressive CTF hints without revealing the flag, runs short quizzes, and suggests what to study next from your quiz history. It also exposes two of these as local MCP tools.
 
-## 💡 Solution
-SecureLearn is a multi-agent system built using the Google ADK and powered by the Gemini API. It features four specialized sub-agents—CurriculumAgent, CTFHintAgent, QuizAgent, and PersonalizationAgent—working in tandem through an interactive CLI and an MCP server. By tracking user progress natively, the system ensures that students aren't just given generic answers, but are guided intelligently through their ethical hacking journey.
+Content comes from the Gemini API in live mode, or from canned responses in demo mode.
 
-## 🏗️ Architecture
+## Try it (no API key)
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env        # DEMO_MODE=true is the default
+python main.py
+```
+
+Demo mode replays the sample responses in `demo/demo_responses.json` through the same menu, profile tracking and file saving as live mode. Responses do not change with your input, so the quiz and learning path are always the sample ones.
+
+## Live mode
+
+Set `DEMO_MODE=false` and `GEMINI_API_KEY` in `.env`. The model name defaults to `gemini-2.5-flash` and can be changed with `GEMINI_MODEL`, because Gemini model names are retired from time to time.
+
+Live mode uses the current `google-genai` SDK. It has not been run end to end in automated tests, because the tests use a fake client and no network.
+
+## How it works
 
 ```mermaid
 graph TD
-    User([Student]) --> CLI[Interactive CLI<br/>main.py]
-    User --> MCPClient[MCP Client]
-
-    MCPClient --> MCPServer[MCP Server<br/>mcp_server.py]
-    
-    CLI --> ProfileMgr[Profile Manager<br/>profile_manager.py]
-    
-    subgraph AI Agents
-        CA[Curriculum Agent]
-        HA[CTF Hint Agent]
-        QA[Quiz Agent]
-        PA[Personalization Agent]
-    end
-    
-    CLI --> CA
-    CLI --> HA
-    CLI --> QA
-    CLI --> PA
-    
-    MCPServer --> CA
-    MCPServer --> QA
-    
-    PA -.Reads.-> ProfileMgr
-    QA -.Updates.-> ProfileMgr
-    
-    ProfileMgr <--> Data[(student_profile.json)]
-    
-    CA --> Gemini((Gemini API))
-    HA --> Gemini
-    QA --> Gemini
-    PA --> Gemini
+    User([Student]) --> CLI[main.py menu]
+    User --> MCPClient[MCP client] --> MCP[mcp_server.py]
+    CLI --> CA[CurriculumAgent]
+    CLI --> HA[CTFHintAgent]
+    CLI --> QA[QuizAgent]
+    CLI --> PA[PersonalizationAgent]
+    CLI --> PM[ProfileManager]
+    PM <--> Data[(data/student_profile.json)]
+    CA & HA & QA & PA & MCP --> Client{DEMO_MODE?}
+    Client -- yes --> Demo[demo/demo_responses.json]
+    Client -- no --> Gemini((Gemini API))
 ```
 
-The project leverages four distinct sub-agents and a robust session memory system:
+- **CurriculumAgent**: Markdown learning path for a topic.
+- **CTFHintAgent**: three progressive hints. The prompt tells the model not to give the flag, but a model can still slip, so treat hints as guidance.
+- **QuizAgent**: multiple-choice questions parsed from JSON. Malformed questions are dropped.
+- **PersonalizationAgent**: recommends one topic using weak areas (quiz scores under 70%) and topics studied.
+- **ProfileManager**: JSON file with topics studied, quiz scores, weak areas and a daily streak. Missing or corrupt files fall back to defaults.
 
-- **CurriculumAgent**: Dynamically generates structured, beginner-to-advanced learning paths for any cybersecurity topic (e.g., SQL Injection, XSS, Linux Privilege Escalation).
-- **CTFHintAgent**: Acts as a mentor during CTF challenges. Instead of giving away the flag, it provides exactly 3 progressive hints to nudge the student in the right direction.
-- **QuizAgent**: Generates technical multiple-choice questions to test the student's knowledge and evaluates answers with detailed explanations.
-- **PersonalizationAgent**: Analyzes the student's learning history, quiz scores, and weak areas to intelligently recommend what topic to tackle next, ensuring proper difficulty progression.
-- **Student Profile Memory**: A persistent JSON-based tracking system (`/data/student_profile.json`) that automatically records topics studied, calculates daily study streaks, and tracks "weak areas" (quiz scores under 70%) across sessions.
-- **MCP Server**: A Model Context Protocol server running locally to securely expose the agentic tools to compatible MCP clients over Server-Sent Events (SSE).
+These four are small prompt wrappers called by the menu, not autonomous agents.
 
-## 🛠️ Tech Stack
-- **Google ADK** (Agent Development Kit)
-- **MCP** (Model Context Protocol)
-- **Python 3.10+**
-- **Gemini API** (Generative AI)
-- **JSON-based persistent memory**
+## MCP server
 
-## 🚀 Setup Instructions
+```bash
+python mcp_server.py   # http://127.0.0.1:8080, localhost only
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/manivelx/SecureLearnAgent.git
-   cd SecureLearnAgent
-   ```
+Tools: `get_topic_resources(topic, difficulty_level)` and `generate_quiz(topic, num_questions)`. Topics are limited to 100 characters, and quizzes to 1 to 10 questions. The server has no authentication, so it binds to localhost and should stay there: in live mode every call spends your API quota.
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Safety notes
 
-3. **Configure Environment:**
-   Copy the example environment file and insert your Gemini API Key:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your GEMINI_API_KEY
-   ```
+- `.env`, your profile and generated learning paths are git-ignored.
+- Learning-path file names are sanitized, so a topic like `../../x` cannot write outside `learning_paths/`.
+- Topics are length-limited and trimmed before they reach a prompt. This reduces, but does not remove, prompt-injection risk.
 
-4. **Run the Application:**
-   Start the interactive CLI:
-   ```bash
-   python main.py
-   ```
-   Or start the MCP Server:
-   ```bash
-   python mcp_server.py
-   ```
+## Tests
 
-5. **Demo Mode:**
-   If you want to evaluate the pipeline without utilizing a live API key, set `DEMO_MODE=true` in your `.env` file to use pre-written, high-quality sample responses.
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
 
-## 🎯 Why This Project
-Built by a cybersecurity student with hands-on CTF competition experience, this tool was designed to address the real, everyday gaps in how students learn ethical hacking. Rather than spoon-feeding answers, SecureLearn mentors the student, mimicking the experience of having a seasoned senior hacker guiding you through a challenge.
+27 tests cover helpers, all four agents, the profile manager, the CLI flow and the MCP functions.
 
-## 🔮 Future Work
-- **Integration with AdaptShield**: Linking the agent with an AI-powered adaptive firewall system.
-- **Platform Integrations**: Utilizing the TryHackMe and HackTheBox APIs to automatically pull live CTF context.
-- **Web Interface**: Transitioning the CLI and MCP backend into a fully-fledged Flask web application.
+## Limits and future work
+
+- Quality of live output depends on the model and is not checked automatically.
+- Single local user; no accounts.
+- Ideas: TryHackMe and Hack The Box context, a web interface, a link with AdaptShield.
+
+## License
+
+MIT, see `LICENSE`.

@@ -38,5 +38,23 @@
       }
     ]
   },
-  "personalization": "# Recommended Topic: Web Application Security Basics\n\nBased on your profile, you haven't studied any specific web vulnerabilities yet. Before diving into complex challenges, it's crucial to understand how web applications function and the common flaws they exhibit.\n\n**Why this topic?**\nYou currently have a 1-day study streak and no recorded weak areas. Building a foundation in Web Application Security will prepare you for topics like SQL Injection and XSS, which are fundamental to modern cybersecurity.\n\n**What you will learn:**\n- HTTP/HTTPS protocols\n- The OSI model conceptually\n- Basic web architecture (frontend, backend, databases)\n- The OWASP Top 10 introduction"
+  "personalization": "# Recommended Topic: Web Application Security Basics\n\nBased on your profile, you haven't studied any specific web vulnerabilities yet. Before diving into complex challenges, it's crucial to understand how web applications function and the common flaws they exhibit.\n\n**Why this topic?**\nYou currently have a 1-day study streak and no recorded weak areas. Building a foundation in Web Application Security will prepare you for topics like SQL Injection and XSS, which are fundamental to modern cybersecurity.\n\n**What you will learn:**\n- HTTP/HTTPS protocols\n- The OSI model conceptually\n- Basic web architecture (frontend, backend, databases)\n- The OWASP Top 10 introduction",
+  "topic_resources": {
+    "description": "Sample resources shown in demo mode.",
+    "key_concepts": [
+      "Input validation",
+      "Parameterized queries",
+      "Least privilege"
+    ],
+    "practice_platforms": [
+      "PortSwigger Web Security Academy",
+      "OWASP Juice Shop",
+      "TryHackMe"
+    ],
+    "recommended_order": [
+      "Learn the basics",
+      "Practice in a legal lab",
+      "Read the OWASP cheat sheets"
+    ]
+  }
 }
