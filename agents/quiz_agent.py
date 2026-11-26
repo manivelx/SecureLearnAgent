@@ -1,27 +1,18 @@
-import os
-import json
-import google.generativeai as genai
+from agents.common import GeminiClient, clean_topic, demo_mode, extract_json, load_demo
+
 
 class QuizAgent:
-    def __init__(self):
-        self.demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
-        
-        if not self.demo_mode:
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY is not set.")
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-pro')
+    def __init__(self, llm=None):
+        self.demo_mode = demo_mode()
+        self.llm = llm if llm is not None else (None if self.demo_mode else GeminiClient())
 
     def generate_quiz(self, topic: str, num_questions: int = 3) -> list:
-        """
-        Generates a multiple choice quiz on the specified cybersecurity topic and returns it as a parsed JSON list.
-        """
+        """Return a list of multiple-choice questions, or [] if the reply cannot be parsed."""
+        topic = clean_topic(topic)
+        if not 1 <= num_questions <= 10:
+            raise ValueError("num_questions must be between 1 and 10")
         if self.demo_mode:
-            demo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests", "demo_responses.json")
-            with open(demo_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data["quiz"]["questions"]
+            return load_demo("quiz")["questions"][:num_questions]
 
         prompt = f"""
         You are a Cybersecurity Instructor.
@@ -38,16 +29,18 @@ class QuizAgent:
             ]
         }}
         """
-        
-        response = self.model.generate_content(prompt)
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:-3].strip()
-        elif text.startswith("```"):
-            text = text[3:-3].strip()
-            
         try:
-            parsed = json.loads(text)
-            return parsed.get("questions", [])
-        except Exception:
+            parsed = extract_json(self.llm.generate(prompt))
+        except ValueError:
             return []
+        questions = parsed.get("questions", []) if isinstance(parsed, dict) else []
+        return [q for q in questions if _valid_question(q)]
+
+
+def _valid_question(question) -> bool:
+    return (
+        isinstance(question, dict)
+        and isinstance(question.get("options"), dict)
+        and str(question.get("correct_answer", "")).upper() in question["options"]
+        and "question" in question
+    )
