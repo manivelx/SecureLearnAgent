@@ -66,7 +66,7 @@ The project leverages four distinct sub-agents and a robust session memory syste
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/manivel-cyber-ai/SecureLearnAgent.git
+   git clone https://github.com/manivelx/SecureLearnAgent.git
    cd SecureLearnAgent
    ```
 
